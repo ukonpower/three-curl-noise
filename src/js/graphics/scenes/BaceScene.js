@@ -34,7 +34,5 @@ export default class BaceScene {
         this.touchUp(cursor);
     }
 
-    touchDown(cursor){}
-    touchUp(cursor){}
-    touchMove(cursor){}
+  
 }

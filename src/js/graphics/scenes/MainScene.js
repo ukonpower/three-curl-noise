@@ -21,7 +21,7 @@ export default class MainScene extends BaceScene {
         this.particleMaterial;
         this.particleUniforms;
 
-        this.computeTextureWidth = 30;
+        this.computeTextureWidth = 500;
         this.numParticle = this.computeTextureWidth * this.computeTextureWidth;
         
         this.computeRenderer;
@@ -58,7 +58,9 @@ export default class MainScene extends BaceScene {
         this.positionUniforms = this.positions.material.uniforms;
         this.positionUniforms.mouse = { mouse: {type:"v2"}, value : new THREE.Vector2(0,0) }
 
-        this.computeRenderer.setVariableDependencies( this.velocitys, [ this.positions, this.velocitys ] );
+        this.computeRenderer.setVariableDependencies( this.velocitys, [ this.positions, this.velocitys ] );  
+        this.velocityUniforms = this.velocitys.material.uniforms;
+        this.velocityUniforms.mouse = { mouse: {type:"v2"}, value : new THREE.Vector2(0,0) }
 
         this.computeRenderer.init();
     }
@@ -67,9 +69,9 @@ export default class MainScene extends BaceScene {
         var texArray = tex.image.data;
         
         for(var i = 0; i < texArray.length; i +=4){
-            texArray[i + 0] = Math.random() * 2 - 1;
-            texArray[i + 1] = Math.random() * 2 - 1;
-            texArray[i + 2] = Math.random() * 2 - 1;
+            texArray[i + 0] = Math.random() * 20 - 10;
+            texArray[i + 1] = Math.random() * 20 - 10;
+            texArray[i + 2] = Math.random() * 20 - 10;
             texArray[i + 3] = 0.0;
         }
         
@@ -78,10 +80,10 @@ export default class MainScene extends BaceScene {
     initVelocity(tex){
         var texArray = tex.image.data;
         for(var i = 0; i < texArray.length; i +=4){
-            texArray[i + 0] = Math.random() * 6 - 3;
-            texArray[i + 1] = Math.random() * 6 - 3;
-            texArray[i + 2] = Math.random() * 6 - 3;
-            texArray[i + 3] = Math.random() * 6 - 3;
+            texArray[i + 0] = 0;
+            texArray[i + 1] = 0;
+            texArray[i + 2] = 0;
+            texArray[i + 3] = 0;
         }
     }
 
@@ -127,6 +129,7 @@ export default class MainScene extends BaceScene {
 
         this.scene.add(particle);
     }
+    
     getCameraConstant( camera ) {
         return window.innerHeight / ( Math.tan( THREE.Math.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
     }
@@ -139,6 +142,12 @@ export default class MainScene extends BaceScene {
 
     onTouchStart(cursor){
         this.isTouch = true;
+        var halfWidth = innerWidth / 2;
+        var halfHeight = innerHeight / 2;
+        var pos = new THREE.Vector2((cursor.x - halfWidth) / halfWidth,(cursor.y - halfHeight) / halfHeight);
+
+        this.velocityUniforms.mouse = { value: pos };
+        this.positionUniforms.mouse = { value: pos };
     }
 
     onTouchMove(cursor){
@@ -146,13 +155,17 @@ export default class MainScene extends BaceScene {
         var halfWidth = innerWidth / 2;
         var halfHeight = innerHeight / 2;
         var pos = new THREE.Vector2((cursor.x - halfWidth) / halfWidth,(cursor.y - halfHeight) / halfHeight);
-        console.log(pos);
         
+        this.velocityUniforms.mouse = { value: pos };
         this.positionUniforms.mouse = { value: pos };
     }
 
     onTouchEnd(cursor){
         this.isTouch = false;
+        var pos = new THREE.Vector2(0,0);
+        
+        this.velocityUniforms.mouse = { value: pos };
+        this.positionUniforms.mouse = { value: pos };
     }
 
 }
