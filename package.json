@@ -1,0 +1,39 @@
+{
+  "name": "daily-webgl-template",
+  "version": "1.0.0",
+  "description": "daily webgl template",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:Obshi/daily-webgl-template.git"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/cli": "^7.0.0-beta.40",
+    "@babel/core": "^7.0.0-beta.40",
+    "@babel/polyfill": "^7.0.0-beta.40",
+    "@babel/preset-env": "^7.0.0-beta.40",
+    "@babel/register": "^7.0.0-beta.40",
+    "babel-loader": "^8.0.0-beta.0",
+    "browser-sync": "^2.24.6",
+    "del": "^3.0.0",
+    "gulp": "^3.9.1",
+    "gulp-autoprefixer": "^5.0.0",
+    "gulp-cssmin": "^0.2.0",
+    "gulp-plumber": "^1.2.0",
+    "gulp-sass": "^4.0.1",
+    "install": "^0.12.1",
+    "jquery": "^3.3.1",
+    "shader-loader": "^1.3.1",
+    "three": "^0.91.0",
+    "three-gltf2-loader": "^1.2.0",
+    "three-orbit-controls": "^82.1.0",
+    "webpack": "^4.16.3",
+    "webpack-stream": "^5.1.0"
+  },
+  "dependencies": {}
+}
