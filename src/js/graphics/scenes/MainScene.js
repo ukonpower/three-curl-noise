@@ -4,7 +4,9 @@ import frag from '../shaders/fragment.glsl';
 import vert from '../shaders/vertex.glsl';
 import comShaderPosition from '../shaders/computePosition.glsl';
 import comShaderVelocity from '../shaders/computeVelocity.glsl';
-import GPUComputationRenderer from '../utils/libs/GPUComputationRenderer'
+import comShaderTime from '../shaders/computeTime.glsl';
+import GPUComputationRenderer from '../utils/libs/GPUComputationRenderer';
+import Timer from '../utils/Timer.js';
 
 window.THREE = THREE;
 
@@ -13,9 +15,10 @@ export default class MainScene extends BaceScene {
     constructor(renderer) {
         super();
 
+        this.tick = 0;
+        this.timer = new Timer();
         this.frag = true;
         this.renderer = renderer;
-        this.time = 0;
 
         this.particleGeometry;
         this.particleMaterial;
@@ -30,11 +33,13 @@ export default class MainScene extends BaceScene {
 
         this.positionUniforms;
 
+        this.lastTime = Date.now();
+
         this.init();
     }
 
     init() {
-        this.camera.position.set(0, 10, 10)
+        this.camera.position.set(0, 0, 15)
         this.camera.lookAt(0,0,0);  
         this.initComputeRenderer();
         this.initParticles();
@@ -43,28 +48,57 @@ export default class MainScene extends BaceScene {
     initComputeRenderer(){
         this.computeRenderer = new GPUComputationRenderer(this.computeTextureWidth,this.computeTextureWidth,this.renderer);
         
+         //初期化用のテクスチャ
         var initPositionTex = this.computeRenderer.createTexture();
         var initVelocityTex = this.computeRenderer.createTexture();
+        var initTimeTex = this.computeRenderer.createTexture();
 
-        //初期化用のテクスチャ
         this.initPosition(initPositionTex);
         this.initVelocity(initVelocityTex);
+        this.initTime(initTimeTex);
 
+        console.log(initTimeTex);
+        
         //computeRendererにシェーダーを追加。インプットテクスチャを取得。
         this.positions = this.computeRenderer.addVariable("texturePosition",comShaderPosition,initPositionTex);
         this.velocitys = this.computeRenderer.addVariable("textureVelocity",comShaderVelocity,initVelocityTex);
+        //時間処理系のテクスチャ
+        this.times = this.computeRenderer.addVariable("textureTime",comShaderTime,initTimeTex);
 
-        this.computeRenderer.setVariableDependencies( this.positions, [ this.positions, this.velocitys ] );
+        
+        this.computeRenderer.setVariableDependencies( this.times, [ this.positions, this.velocitys,this.times ] );
+        this.timesUniforms = this.times.material.uniforms;
+        this.timesUniforms.deltaTime =  { type: "f" , value : 0.0 };
+
+        this.computeRenderer.setVariableDependencies( this.positions, [ this.positions, this.velocitys,this.times ] );
         this.positionUniforms = this.positions.material.uniforms;
-        this.positionUniforms.mouse = { mouse: {type:"v2"}, value : new THREE.Vector2(0,0) }
+        this.positionUniforms.mouse =  { type:"v2" , value : new THREE.Vector2(0,0)};
 
-        this.computeRenderer.setVariableDependencies( this.velocitys, [ this.positions, this.velocitys ] );  
+        this.computeRenderer.setVariableDependencies( this.velocitys, [ this.positions, this.velocitys,this.times ] );  
         this.velocityUniforms = this.velocitys.material.uniforms;
-        this.velocityUniforms.mouse = { mouse: {type:"v2"}, value : new THREE.Vector2(0,0) }
+        this.velocityUniforms.mouse =  { type:"v2", value : new THREE.Vector2(0,0)};
 
         this.computeRenderer.init();
     }
     
+    initTime(tex){
+        var texArray = tex.image.data;
+        var maxRandom = 2000;
+        //ready emmit
+        var z = 0.0;
+        
+        for(var i = 0; i < texArray.length; i +=4){
+            //lifetime
+            var x = Math.random() * maxRandom;
+            //currentTime
+            var y = x * (i / 4) / (texArray.length / 4);
+            texArray[i + 0] = x;
+            texArray[i + 1] = y;
+            texArray[i + 2] = z;
+            texArray[i + 3] = 0.0;
+        }  
+    }
+
     initPosition(tex){
         var texArray = tex.image.data;
         
@@ -80,9 +114,9 @@ export default class MainScene extends BaceScene {
     initVelocity(tex){
         var texArray = tex.image.data;
         for(var i = 0; i < texArray.length; i +=4){
-            texArray[i + 0] = 0;
-            texArray[i + 1] = 0;
-            texArray[i + 2] = 0;
+            texArray[i + 0] = Math.random() * 20 - 10;
+            texArray[i + 1] = Math.random() * 20 - 10;
+            texArray[i + 2] = Math.random() * 20 - 10;
             texArray[i + 3] = 0;
         }
     }
@@ -109,10 +143,11 @@ export default class MainScene extends BaceScene {
         this.particleGeometry.addAttribute('position', new THREE.BufferAttribute( pArray, 3 ) );
         this.particleGeometry.addAttribute('uv', new THREE.BufferAttribute( uv, 2 ) );
 
-        //コンピュートシェーダーから受け取ったテクスチャを受け取るuniformを設定
+        //コンピュートシェーダーからのテクスチャを受け取るuniformを設定
         this.particleUniforms = {
             texturePosition : {value: null},
             textureVelocity : {value: null},
+            textureTime : {value : null},
             cameraConstant: { value: this.getCameraConstant( this.camera ) }
         }
 
@@ -121,6 +156,7 @@ export default class MainScene extends BaceScene {
             vertexShader: vert,
             fragmentShader: frag
         });
+
         this.particleMaterial.extensions.drawBuffers = true;
 
         var particle = new THREE.Points(this.particleGeometry,this.particleMaterial);
@@ -135,9 +171,19 @@ export default class MainScene extends BaceScene {
     }
 
     Update(){
+        // this.tick = (this.tick + this.timer.deltaTime * 1) % 5000;
+        
+        // var x = Math.sin(this.tick / 5000 * 2 * Math.PI) * 10;
+        // var z = Math.cos(this.tick / 5000 * 2 * Math.PI) * 10;
+        // this.camera.position.set(x,0,z);
+        
+        this.camera.lookAt(0,0,0);
+        this.timesUniforms.deltaTime.value = this.timer.deltaTime;
+
         this.computeRenderer.compute();
         this.particleUniforms.texturePosition.value = this.computeRenderer.getCurrentRenderTarget(this.positions).texture;
         this.particleUniforms.textureVelocity.value = this.computeRenderer.getCurrentRenderTarget(this.velocitys).texture;
+        this.particleUniforms.textureTime.value = this.computeRenderer.getCurrentRenderTarget(this.times).texture;
     }
 
     onTouchStart(cursor){
@@ -146,8 +192,8 @@ export default class MainScene extends BaceScene {
         var halfHeight = innerHeight / 2;
         var pos = new THREE.Vector2((cursor.x - halfWidth) / halfWidth,(cursor.y - halfHeight) / halfHeight);
 
-        this.velocityUniforms.mouse = { value: pos };
-        this.positionUniforms.mouse = { value: pos };
+        this.velocityUniforms.mouse.value = pos;
+        this.positionUniforms.mouse.value = pos;
     }
 
     onTouchMove(cursor){
@@ -156,16 +202,16 @@ export default class MainScene extends BaceScene {
         var halfHeight = innerHeight / 2;
         var pos = new THREE.Vector2((cursor.x - halfWidth) / halfWidth,(cursor.y - halfHeight) / halfHeight);
         
-        this.velocityUniforms.mouse = { value: pos };
-        this.positionUniforms.mouse = { value: pos };
+        this.velocityUniforms.mouse.value = pos;
+        this.positionUniforms.mouse.value = pos;
     }
 
     onTouchEnd(cursor){
         this.isTouch = false;
         var pos = new THREE.Vector2(0,0);
         
-        this.velocityUniforms.mouse = { value: pos };
-        this.positionUniforms.mouse = { value: pos };
+        this.velocityUniforms.mouse.value = pos;
+        this.positionUniforms.mouse.value = pos;
     }
 
 }

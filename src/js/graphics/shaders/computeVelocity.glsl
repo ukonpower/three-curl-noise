@@ -132,10 +132,18 @@ void main() {
     vec3 vel = tmpVel.xyz;
 
     float idParticle = uv.y * resolution.x + uv.x;
+
+    vec4 tmpTime = texture2D( textureTime, uv );
+    float lifeTime = tmpTime.x;
+    float currentTime = tmpTime.y;
+    float emitReady = tmpTime.z;
     
-    vel = snoiseDelta(pos) * 1.0;
-    
-    vel.x += mouse.x * 5.0;
-    vel.y -= mouse.y * 5.0;
+    vel = vel + snoiseDelta(pos) * 0.3;
+
+    if(emitReady > 0.5){
+        vel.x += mouse.x * 50.0;
+        vel.y -= mouse.y * 50.0;
+    }
+    vel *= 0.92;
     gl_FragColor = vec4( vel.xyz, 1.0 );
 }
